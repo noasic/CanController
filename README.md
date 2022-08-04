@@ -199,4 +199,4 @@ The following table shows implementation results for the CAN Controller Core on 
 
 ## Acknowledgements
 
-Thanks to Sigasi for providing a Sigasi Studio XPRT license, which was of great help for developing the core.
+Thanks to [Sigasi](http://sigasi.com) for providing a Sigasi Studio XPRT license, which was of great help for developing the core.
