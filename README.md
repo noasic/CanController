@@ -54,10 +54,10 @@ The following diagram shows the input and output interfaces of the CAN Controlle
 | Name | Dir. | Type | Description |
 | ---- | ---- | ---- | ----------- |
 | `i_config.prescaler` | in | `unsigned(7:0)` | Bitrate prescaler. Sets the  length of a time quantum (TQ) in system clock cycles. The actual length is `prescaler + 1`. |
-| `i_config.tseg1` | in | `unsigned(3 downto 0)` | Time segment 1. Length of the first time segment in time quantums. The actual length is `tseg1 + 1`. The allowed range for `tseg1` is 1 to 15 (actual length: 2..16 TQs). |
-| `i_config.tseg2` | in | `unsigned(2 downto 0)` | Time segment 2. Length of the second time segment in time quantums. The actual length is `tseg2 + 1`. The allowed range is 0 to 7 (actual length: 1..8 TQs) |
-| `i_config.sjw` | in | `unsigned(1 downto 0)` | Synchronization jump width. The actual width is `sjw + 1`. The allowed range is 0 to 3 (actual jump width: 1..4 TQs) |
-| `i_config.testmode` | in | `unsigned(1 downto 0)` | Test mode (0: normal operation, 1: listen-only mode, 2: loopback mode) |
+| `i_config.tseg1` | in | `unsigned(3:0)` | Time segment 1. Length of the first time segment in time quantums. The actual length is `tseg1 + 1`. The allowed range for `tseg1` is 1 to 15 (actual length: 2..16 TQs). |
+| `i_config.tseg2` | in | `unsigned(2:0)` | Time segment 2. Length of the second time segment in time quantums. The actual length is `tseg2 + 1`. The allowed range is 0 to 7 (actual length: 1..8 TQs) |
+| `i_config.sjw` | in | `unsigned(1:0)` | Synchronization jump width. The actual width is `sjw + 1`. The allowed range is 0 to 3 (actual jump width: 1..4 TQs) |
+| `i_config.testmode` | in | `unsigned(1:0)` | Test mode (0: normal operation, 1: listen-only mode, 2: loopback mode) |
 
 ### Transmit Interface
 
@@ -133,23 +133,57 @@ The debug interface provides information about the CAN Controller’s internal s
 
 ## Core Usage
 
-`TODO`
-
 ### Bit Timing Configuration
 
-`TODO`
+In accordance with the CAN standard, the nominal bit time is divided four separate, nonoverlapping time segments:
+
+* The synchronization segment is used to synchronize the various nodes on the bus. An edge is expected to lie within this segment. The length of `SYNC_SEG` is fixed to 1
+TQ.
+* The propagation segment is used to compensate for the physical delay times within the network. The length of `PROP_SEG` is 1..8 TQs.
+* The phase segments 1 and 2 are used to compensate for edge phase errors. These segments can be lengthened or shortened by resynchronization. The length of `PHASE_SEG1` and `PHASE_SEG2` is 1..8 TQs.
+
+![Segments](doc/segments.png)
+
+The sample point is the point in time at which the bus level is read and interpreted as the
+value of that respective bit.
+
+Within the CAN Controller Core, the bit timing can be set using the `TSEG1` and `TSEG2` parameters. The nominal bit time, is given by the following expression:
+
+```
+nominal bit time (in TQs) = 1 + TSEG1 + TSEG2
+```
+
+The length of a time quanta, in system clock cycles, is set using the `PRESCALER` configuration value:
+
+```
+TQ length (in system clock cycles) = 1 + PRESCALER
+```
+
+**Note**: for any given CAN bit rate, several bit-time settings can be used. You can use a CAN bit
+timing calculator such as http://www.bittiming.can-wiki.info to find the optimal settings for
+your application.
 
 ### Message Transmission
 
-`TODO`
+To transmit a message, the user must apply valid message contents on the `i_tx_msg` port
+and assert the `i_tx_msg_valid` port. Both signals must remain constant until the message
+transmission is acknowledged by the core using the `o_tx_msg_ready port`.
 
 ### Message Reception
 
-`TODO`
+The reception of a message is signalled by the `o_rx_msg_valid` port going high for one clock
+cycle. It is the responsibility of the user to register the received message upon assertion of
+the `o_rx_msg_valid` signal.
 
 ## Core Architecture
 
-`TODO`
+The CAN Controller Core consists of a number of sub-modules:
+* The **Prescaler** divides the system clock by a programmable factor to match the adapt for the bus data rate
+* The **Bit Timing Logic** (BTL) handles the transmission and reception of single bits on the bus
+* The **Bit Stream Processor** (BSP) implements the medium access controller (MAC) tasks such as data encapsulation/decapsulation, arbitration, error detection, retry on
+lost arbitration. It also manages the error state of the controller (error-active, errorpassive, bus-off) as well as the error counters and generates the interrupt signals.
+
+![Architecture](doc/architecture.png)
 
 ## Design Verification
 
@@ -157,7 +191,11 @@ The debug interface provides information about the CAN Controller’s internal s
 
 ## Implementation Results
 
-`TODO`
+The following table shows implementation results for the CAN Controller Core on selected devices.
+
+| Device | LUT | FF | BRAM | DSP48 | Fmax | Toolchain |
+| ------ | --- | --- | --- | ----- | ---- | --------- |
+| Virtex-6 | `XC6VLX130T-1` | 1112 | 409 | 0 | 0 | 120 MHz | Xilinx ISE14.6 |
 
 ## Acknowledgements
 
